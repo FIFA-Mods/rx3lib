@@ -1,5 +1,6 @@
 .vs/
 Release/
+output/
 # Prerequisites
 *.d
 
