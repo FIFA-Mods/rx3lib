@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="rx3lib\Rx3Container.cpp" />
+    <ClCompile Include="rx3lib\Rx3Hotspot.cpp" />
+    <ClCompile Include="rx3lib\Rx3Model.cpp" />
+    <ClCompile Include="rx3lib\Rx3Morph.cpp" />
+    <ClCompile Include="rx3lib\Rx3Names.cpp" />
+    <ClCompile Include="rx3lib\Rx3Options.cpp" />
+    <ClCompile Include="rx3lib\Rx3Scene.cpp" />
+    <ClCompile Include="rx3lib\Rx3Skeleton.cpp" />
+    <ClCompile Include="rx3lib\Rx3TextureMetadata.cpp" />
+    <ClCompile Include="rx3lib\Rx3Textures.cpp" />
+    <ClCompile Include="rx3lib\Rx3Utils.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="rx3lib\Rx3Container.h" />
+    <ClInclude Include="rx3lib\Rx3Hotspot.h" />
+    <ClInclude Include="rx3lib\Rx3Model.h" />
+    <ClInclude Include="rx3lib\Rx3Morph.h" />
+    <ClInclude Include="rx3lib\Rx3Names.h" />
+    <ClInclude Include="rx3lib\Rx3Options.h" />
+    <ClInclude Include="rx3lib\Rx3Scene.h" />
+    <ClInclude Include="rx3lib\Rx3Skeleton.h" />
+    <ClInclude Include="rx3lib\Rx3TextureMetadata.h" />
+    <ClInclude Include="rx3lib\Rx3Textures.h" />
+    <ClInclude Include="rx3lib\Rx3Utils.h" />
+  </ItemGroup>
+</Project>
