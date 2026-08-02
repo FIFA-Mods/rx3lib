@@ -107,8 +107,56 @@ map<string, GameConfig> &GameConfigs() {
             UINT32_MAX, // MaxBonesPerMesh
             false, // TextureRasterSuffix
             true,  // QuadMeshes
+            false, // StadiumTexturesAndModelInOneContainer
             true,  // PadAllVertexBufferBoneIndices
-            SKIN_PALETTE_OPCODES_16BIT_BONE_IDS,
+            {
+                { RX3_TEXFORMAT_DXT1, RX3_TEXFORMAT_DXT1 },
+                { RX3_TEXFORMAT_DXT3, RX3_TEXFORMAT_DXT3 },
+                { RX3_TEXFORMAT_DXT5, RX3_TEXFORMAT_DXT5 },
+                { RX3_TEXFORMAT_ARGB8888, RX3_TEXFORMAT_ARGB8888 },
+                { RX3_TEXFORMAT_L8, RX3_TEXFORMAT_L8 },
+                { RX3_TEXFORMAT_AL8, RX3_TEXFORMAT_AL8 },
+                { RX3_TEXFORMAT_RG8, RX3_TEXFORMAT_RG8 },
+                { RX3_TEXFORMAT_BC5, RX3_TEXFORMAT_BC5 },
+                { RX3_TEXFORMAT_RGB565, RX3_TEXFORMAT_DXT1 },
+                { RX3_TEXFORMAT_ARGB4444, RX3_TEXFORMAT_DXT5 },
+                { RX3_TEXFORMAT_BC6, RX3_TEXFORMAT_BC6 },
+                { RX3_TEXFORMAT_BC7, RX3_TEXFORMAT_BC7 },
+                { RX3_TEXFORMAT_BC4, RX3_TEXFORMAT_L8 }
+            }
+        )},
+        { "fifa23switch", GameConfig(
+            false, // BigEndian
+            4,     // MaxBonesPerVertex
+            64,    // MaxBonesPerMesh
+            false, // TextureRasterSuffix
+            false, // QuadMeshes
+            false, // StadiumTexturesAndModelInOneContainer
+            true,  // PadAllVertexBufferBoneIndices
+            {
+                { RX3_TEXFORMAT_DXT1, RX3_TEXFORMAT_DXT1 },
+                { RX3_TEXFORMAT_DXT3, RX3_TEXFORMAT_DXT3 },
+                { RX3_TEXFORMAT_DXT5, RX3_TEXFORMAT_DXT5 },
+                { RX3_TEXFORMAT_ARGB8888, RX3_TEXFORMAT_ARGB8888 },
+                { RX3_TEXFORMAT_L8, RX3_TEXFORMAT_L8 },
+                { RX3_TEXFORMAT_AL8, RX3_TEXFORMAT_AL8 },
+                { RX3_TEXFORMAT_RG8, RX3_TEXFORMAT_AL8 },
+                { RX3_TEXFORMAT_BC5, RX3_TEXFORMAT_BC5 },
+                { RX3_TEXFORMAT_RGB565, RX3_TEXFORMAT_DXT1 },
+                { RX3_TEXFORMAT_ARGB4444, RX3_TEXFORMAT_DXT5 },
+                { RX3_TEXFORMAT_BC6, RX3_TEXFORMAT_BC6 },
+                { RX3_TEXFORMAT_BC7, RX3_TEXFORMAT_BC7 },
+                { RX3_TEXFORMAT_BC4, RX3_TEXFORMAT_BC4 }
+            }
+        )},
+        { "fo4", GameConfig(
+            false, // BigEndian
+            8,     // MaxBonesPerVertex
+            UINT32_MAX, // MaxBonesPerMesh
+            false, // TextureRasterSuffix
+            true,  // QuadMeshes
+            false, // StadiumTexturesAndModelInOneContainer
+            true,  // PadAllVertexBufferBoneIndices
             {
                 { RX3_TEXFORMAT_DXT1, RX3_TEXFORMAT_DXT1 },
                 { RX3_TEXFORMAT_DXT3, RX3_TEXFORMAT_DXT3 },

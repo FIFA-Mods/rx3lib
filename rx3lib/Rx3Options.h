@@ -22,11 +22,6 @@ struct TexFormatTarget {
     unsigned short height = 0;
 };
 
-enum eSkinPaletteOpcodesPolicty {
-    SKIN_PALETTE_OPCODES_ALWAYS,
-    SKIN_PALETTE_OPCODES_16BIT_BONE_IDS
-};
-
 struct GameConfig {
     bool BigEndian = false;
     unsigned char MaxBonesPerVertex = 0;
