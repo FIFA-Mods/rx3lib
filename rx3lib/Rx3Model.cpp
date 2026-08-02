@@ -679,7 +679,8 @@ Model ModelFromSimpleMeshContainer(Rx3Container &rx3, Rx3Options const &options)
     for (size_t i = 0; i < ibs.size(); i++) {
         auto &obj = model.objects[i + 1];
         obj.name = objectNames[i];
-        obj.parent = nodeName;
+        if (model.skeleton.bones.empty())
+            obj.parent = nodeName;
         Rx3Reader meshChunkReader(meshes[i]);
         uint16_t primType = meshChunkReader.Read<uint16_t>();
         auto qb = qbs.size() == ibs.size() ? qbs[i] : nullptr;
@@ -735,10 +736,18 @@ bool RemapBones(Model &model, map<string, string> boneRemap, Skeleton const &tar
     return true;
 }
 
+void RenameObjects(Model &model) {
+    for (auto &o : model.objects) {
+        if (o.name.starts_with("gkglove_mat") && o.name.find("accessory") == string::npos)
+            o.name = "accessory_" + o.name;
+    }
+}
+
 void ModelToSimpleMeshContainer(Model const &source, Rx3Container &rx3, Rx3Options const &options) {
     using namespace helper::rx3model;
     Model model = source;
     model.MergeMeshes();
+    RenameObjects(model);
     bool remappedBones = false;
     bool hasSkeleton = !model.skeleton.bones.empty() && !options.targetSkeleton.bones.empty();
     if (hasSkeleton) {

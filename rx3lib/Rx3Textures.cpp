@@ -493,7 +493,7 @@ bool ImportTexturesToRX3(Rx3Container &rx3, vector<PackedTextureInfo> const &tex
         // 1. Load Image Data
         if (isDDS) hr = LoadFromDDSFile(t.filePath.c_str(), DDS_FLAGS_NONE, nullptr, image);
         else if (isPNG) hr = LoadFromWICFile(t.filePath.c_str(), WIC_FLAGS_IGNORE_SRGB, nullptr, image);
-        else if (isTGA) hr = LoadFromTGAFile(t.filePath.c_str(), TGA_FLAGS_NONE, nullptr, image);
+        else if (isTGA) hr = LoadFromTGAFile(t.filePath.c_str(), TGA_FLAGS_ALLOW_ALL_ZERO_ALPHA, nullptr, image);
         else if (isHDR) hr = LoadFromHDRFile(t.filePath.c_str(), nullptr, image);
         else continue; // Unsupported extension
 
