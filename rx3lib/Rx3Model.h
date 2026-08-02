@@ -30,4 +30,5 @@ void SetupObjectMesh(Object &obj, Rx3Chunk *vfChunk, Rx3Chunk *vbChunk, Rx3Chunk
     unsigned int numBones, Rx3Options const &options);
 void ExtractModelFromRX3(Rx3Container &container, path const &outputDir, Rx3Options const &rx3options);
 Model ModelFromSimpleMeshContainer(Rx3Container &rx3, Rx3Options const &options);
+void ModelToSimpleMeshContainer(Model const &model, Rx3Container &rx3, Rx3Options const &options);
 void ModelToSimpleMeshContainer(Model const &model, path const &sourcePath, path const &rx3path, Rx3Options const &options);

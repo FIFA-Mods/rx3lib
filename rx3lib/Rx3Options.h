@@ -46,6 +46,7 @@ struct GameConfig {
 map<string, GameConfig> &GameConfigs();
 
 struct Rx3Options {
+    string tools;
     string toolsVersion;
     string cmdLine;
     string game;
@@ -64,9 +65,14 @@ struct Rx3Options {
     map<string, TexFormatTarget> texTargetFormats;
     Model baseModel;
     Skeleton targetSkeleton;
+    map<string, string> boneRemap;
+    float scale;
+    Vector3 movement;
+    unordered_map<string, Matrix4x4> poseChangeMatrices;
 
     Rx3Options();
     Rx3Options(string const &gameName);
+    Vector3 AdjustPosition(Vector3 const &pos) const;
 };
 
 void AddMetadataToRx3(Rx3Container &rx3, path const &in, path const &out, Rx3Options const &options);

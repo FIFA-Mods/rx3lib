@@ -161,6 +161,17 @@ Rx3Options::Rx3Options(string const &gameName) {
     precisePositions = true;
     binormals = false;
     boneMatricesOption = BONE_MATRICES_FROM_FILE;
+    scale = 1.0f;
+    movement = { 0.0f, 0.0f, 0.0f };
+}
+
+Vector3 Rx3Options::AdjustPosition(Vector3 const &pos) const {
+    Vector3 newPos = pos;
+    if (scale != 1.0f)
+        newPos *= scale;
+    if (movement.x != 0.0f || movement.y != 0.0f || movement.z != 0.0f)
+        newPos += movement;
+    return newPos;
 }
 
 void AddMetadataToRx3(Rx3Container &rx3, path const &in, path const &out, Rx3Options const &options) {
@@ -172,13 +183,17 @@ void AddMetadataToRx3(Rx3Container &rx3, path const &in, path const &out, Rx3Opt
     std::ostringstream timess;
     timess << std::put_time(&tm, "%d-%b-%Y %H:%M:%S");
     metadata += "<Metadata>";
-    metadata += "<Tools>RX3 Converter (rx3c), part of Rx3Tools</Tools>";
-    metadata += "<ToolsVersion>" + options.toolsVersion + "</ToolsVersion>";
-    metadata += "<ToolsCommand>" + options.cmdLine + "</ToolsCommand>";
+    if (!options.tools.empty())
+        metadata += "<Tools>" + options.tools + "</Tools>";
+    if (!options.toolsVersion.empty())
+        metadata += "<ToolsVersion>" + options.toolsVersion + "</ToolsVersion>";
+    if (!options.cmdLine.empty())
+        metadata += "<ToolsCommand>" + options.cmdLine + "</ToolsCommand>";
     metadata += "<TimeStamp>" + timess.str() + "</TimeStamp>";
-    //metadata += "<Author>" + "</Author>";
-    metadata += "<OriginalFileName>" + ToUTF8(out.c_str()) + "</OriginalFileName>";
-    metadata += "<SourceFile>" + ToUTF8(in.c_str()) + "</SourceFile>";
+    if (!out.empty())
+        metadata += "<OriginalFileName>" + ToUTF8(out.c_str()) + "</OriginalFileName>";
+    if (!in.empty())
+        metadata += "<SourceFile>" + ToUTF8(in.c_str()) + "</SourceFile>";
     metadata += "</Metadata>";
     Rx3Writer metadataWriter(rx3.AddChunk(RX3_CHUNK_METADATA));
     metadataWriter.Put<uint32_t>(metadata.size() + 1);

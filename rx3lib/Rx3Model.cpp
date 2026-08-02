@@ -700,11 +700,52 @@ Model ModelFromRX3(Rx3Container &rx3, Rx3Options const &options) {
     return Model();
 }
 
-void ModelToSimpleMeshContainer(Model const &source, path const &sourcePath, path const &rx3path, Rx3Options const &options) {
+bool RemapBones(Model &model, map<string, string> boneRemap, Skeleton const &targetSkeleton) {
+    if (model.skeleton.bones.empty() || targetSkeleton.bones.empty())
+        return false;
+    map<string, uint16_t> dstBoneIndex;
+    for (size_t i = 0; i < targetSkeleton.bones.size(); i++)
+        dstBoneIndex[targetSkeleton.bones[i].name] = (uint16_t)i;
+    for (auto &o : model.objects) {
+        if (o.vertices.empty())
+            continue;
+        size_t newBonesPerVertex = 0;
+        for (size_t v = 0; v < o.vertices.size(); v++) {
+            auto bonesSrc = MeshSkinning::GetVertexBones(o.vertices[v], NumBones(o.vertexFormat));
+            map<uint16_t, float> bonesDstMap;
+            for (auto const &[boneSrc, weight] : bonesSrc) {
+                if (boneSrc < model.skeleton.bones.size()) {
+                    auto boneSrcName = model.skeleton.bones[boneSrc].name;
+                    if (boneRemap.contains(boneSrcName)) {
+                        auto dstBoneName = boneRemap[boneSrcName];
+                        if (dstBoneIndex.contains(dstBoneName))
+                            bonesDstMap[dstBoneIndex[dstBoneName]] += weight;
+                    }
+                }
+            }
+            vector<pair<uint16_t, float>> bonesDst;
+            for (auto const &[bone, weight] : bonesDstMap)
+                bonesDst.emplace_back(bone, weight);
+            MeshSkinning::SetVertexBones(o.vertices[v], bonesDst, true);
+            newBonesPerVertex = max(bonesDst.size(), newBonesPerVertex);
+        }
+        SetNumBones(o.vertexFormat, (uint8_t)newBonesPerVertex);
+    }
+    model.skeleton = targetSkeleton;
+    return true;
+}
+
+void ModelToSimpleMeshContainer(Model const &source, Rx3Container &rx3, Rx3Options const &options) {
     using namespace helper::rx3model;
     Model model = source;
     model.MergeMeshes();
-    Rx3Container rx3(options.gameConfig.BigEndian);
+    bool remappedBones = false;
+    bool hasSkeleton = !model.skeleton.bones.empty() && !options.targetSkeleton.bones.empty();
+    if (hasSkeleton) {
+        if (!options.poseChangeMatrices.empty())
+            MeshSkinning::ChangePose(model, options.poseChangeMatrices);
+        remappedBones = RemapBones(model, options.boneRemap, options.targetSkeleton);
+    }
     // ibbatch, quadibbatch, vertexformat's, nametable, ib's, qib's, boneremap's, vb's, animationskin's, simplemesh's, adjacency's
     vector<vector<uint8_t>> vbs, ibs, qibs, boneremaps, adjacencies;
     vector<Rx3PrimitiveType> primTypes;
@@ -712,8 +753,7 @@ void ModelToSimpleMeshContainer(Model const &source, path const &sourcePath, pat
     vector<pair<uint32_t, string>> nametable;
     vector<Matrix4x4> ibms;
     DataType posDataType = options.precisePositions ? dt_3f32 : dt_4f16;
-    bool hasSkeleton = !model.skeleton.bones.empty() && !options.targetSkeleton.bones.empty();
-    DataType bonesDataType = (model.skeleton.bones.size() > 255) ? dt_4u16 : dt_4u8;
+    DataType bonesDataType = dt_4u8;
     uint8_t numBoneSets = 0;
     uint8_t numBonesPerVertex = 0;
     uint8_t numBonesToPad = 0;
@@ -735,7 +775,7 @@ void ModelToSimpleMeshContainer(Model const &source, path const &sourcePath, pat
     // calculate skeleton
     if (hasSkeleton) {
         bool adjustMatrices = false;
-        if (options.boneMatricesOption == BONE_MATRICES_FROM_FILE) { // use skeleton from FBX
+        if (options.boneMatricesOption == BONE_MATRICES_FROM_FILE && !remappedBones) { // use skeleton from FBX
             ibms = ComputeBoneInverseBindMatricesForModel(model, options.targetSkeleton);
             adjustMatrices = true;
         }
@@ -753,7 +793,8 @@ void ModelToSimpleMeshContainer(Model const &source, path const &sourcePath, pat
                     ibm.m[r][3] = 0.0f;
             }
         }
-        model.RetargetSkeleton(options.targetSkeleton);
+        if (!remappedBones)
+            model.RetargetSkeleton(options.targetSkeleton);
         model.LimitBonesPerVertex(options.gameConfig.MaxBonesPerVertex);
         for (auto &o : model.objects) {
             auto &objectPackedBones = packedBonesPerObject.emplace_back();
@@ -781,6 +822,8 @@ void ModelToSimpleMeshContainer(Model const &source, path const &sourcePath, pat
         else
             numBoneSets = 1;
         numBonesToPad = options.gameConfig.PadAllVertexBufferBoneIndices ? (numBoneSets * 4) : numBonesPerVertex;
+        if (model.skeleton.bones.size() > 255)
+            bonesDataType = dt_4u16;
     }
 
     // 2f16, 4f16, 3f32, 4u8n, 4u8, 4u16, 3s10n
@@ -819,7 +862,7 @@ void ModelToSimpleMeshContainer(Model const &source, path const &sourcePath, pat
             vector<uint8_t> vertexBuffer(o.vertices.size() * vertexStride);
             uint32_t vbOffset = 0;
             for (size_t v = 0; v < o.vertices.size(); v++) {
-                vbOffset += PackVector3(posDataType, &vertexBuffer[vbOffset], o.vertices[v].pos * 100.0f);
+                vbOffset += PackVector3(posDataType, &vertexBuffer[vbOffset], options.AdjustPosition(o.vertices[v].pos * 100.0f));
                 if (o.vertexFormat & V_Normal)
                     vbOffset += PackVector3(dt_3s10n, &vertexBuffer[vbOffset], o.vertices[v].normal);
                 if (o.vertexFormat & V_Tangent)
@@ -865,52 +908,52 @@ void ModelToSimpleMeshContainer(Model const &source, path const &sourcePath, pat
                 }
                 qibWriter.AlignAndUpdateTotalSize();
                 // adjacency
-            //    struct AdjacencyRecord {
-            //        uint32_t count = 0;
-            //        array<uint32_t, 15> quadIndices{};
-            //    };
-            //    vector<AdjacencyRecord> records(o.vertices.size());
-            //    uint32_t quadIndex = 0;
-            //    for (auto const &p : mesh.polygons) {
-            //        std::array<uint32_t, 4> quad = { p[0], p[1], p[2], p.size() == 4 ? p[3] : p[2] };
-            //        for (size_t i = 0; i < 4; i++) {
-            //            uint32_t vi = quad[i];
-            //            bool seen = false;
-            //            for (size_t j = 0; j < i; j++)
-            //                if (quad[j] == vi) { seen = true; break; }
-            //            if (seen) continue;
-            //            auto &rec = records[vi];
-            //            if (rec.count < 15)
-            //                rec.quadIndices[rec.count++] = quadIndex;
-            //        }
-            //        quadIndex++;
-            //    }
-            //    constexpr float kWeldEpsilonSq = 0.00000011920929f;
-            //    for (size_t a = 0; a < o.vertices.size(); a++) {
-            //        for (size_t b = a + 1; b < o.vertices.size(); b++) {
-            //            auto delta = o.vertices[a].pos - o.vertices[b].pos;
-            //            float distSq = Dot(delta, delta);
-            //            if (distSq > kWeldEpsilonSq)
-            //                continue;
-            //            auto &recA = records[a];
-            //            auto &recB = records[b];
-            //            uint32_t origCountA = recA.count;
-            //            uint32_t origCountB = recB.count;
-            //            for (uint32_t i = 0; (i < origCountB && recA.count < 15); i++)
-            //                recA.quadIndices[recA.count++] = recB.quadIndices[i];
-            //            for (uint32_t i = 0; (i < origCountA && recB.count < 15); i++)
-            //                recB.quadIndices[recB.count++] = recA.quadIndices[i];
-            //        }
-            //    }
-            //    Rx3Writer adjacencyWriter(adjacencies.emplace_back());
-            //    adjacencyWriter.Put<uint32_t>(0);
-            //    adjacencyWriter.Align();
-            //    for (auto const &rec : records) {
-            //        adjacencyWriter.Put<uint32_t>(rec.count);
-            //        for (uint32_t i = 0; i < 15; i++)
-            //            adjacencyWriter.Put<uint32_t>(i < rec.count ? rec.quadIndices[i] : 0);
-            //    }
-            //    adjacencyWriter.AlignAndUpdateTotalSize();
+                struct AdjacencyRecord {
+                    uint32_t count = 0;
+                    array<uint32_t, 15> quadIndices{};
+                };
+                vector<AdjacencyRecord> records(o.vertices.size());
+                uint32_t quadIndex = 0;
+                for (auto const &p : mesh.polygons) {
+                    std::array<uint32_t, 4> quad = { p[0], p[1], p[2], p.size() == 4 ? p[3] : p[2] };
+                    for (size_t i = 0; i < 4; i++) {
+                        uint32_t vi = quad[i];
+                        bool seen = false;
+                        for (size_t j = 0; j < i; j++)
+                            if (quad[j] == vi) { seen = true; break; }
+                        if (seen) continue;
+                        auto &rec = records[vi];
+                        if (rec.count < 15)
+                            rec.quadIndices[rec.count++] = quadIndex;
+                    }
+                    quadIndex++;
+                }
+                constexpr float kWeldEpsilonSq = 0.00000011920929f;
+                for (size_t a = 0; a < o.vertices.size(); a++) {
+                    for (size_t b = a + 1; b < o.vertices.size(); b++) {
+                        auto delta = o.vertices[a].pos - o.vertices[b].pos;
+                        float distSq = Dot(delta, delta);
+                        if (distSq > kWeldEpsilonSq)
+                            continue;
+                        auto &recA = records[a];
+                        auto &recB = records[b];
+                        uint32_t origCountA = recA.count;
+                        uint32_t origCountB = recB.count;
+                        for (uint32_t i = 0; (i < origCountB && recA.count < 15); i++)
+                            recA.quadIndices[recA.count++] = recB.quadIndices[i];
+                        for (uint32_t i = 0; (i < origCountA && recB.count < 15); i++)
+                            recB.quadIndices[recB.count++] = recA.quadIndices[i];
+                    }
+                }
+                Rx3Writer adjacencyWriter(adjacencies.emplace_back());
+                adjacencyWriter.Put<uint32_t>(0);
+                adjacencyWriter.Align();
+                for (auto const &rec : records) {
+                    adjacencyWriter.Put<uint32_t>(rec.count);
+                    for (uint32_t i = 0; i < 15; i++)
+                        adjacencyWriter.Put<uint32_t>(i < rec.count ? rec.quadIndices[i] : 0);
+                }
+                adjacencyWriter.AlignAndUpdateTotalSize();
             }
             // ib
             mesh.Triangulate(o.vertices);
@@ -942,11 +985,11 @@ void ModelToSimpleMeshContainer(Model const &source, path const &sourcePath, pat
             // boneremap
             if (hasSkeleton) {
                 if (skinPalette.size() > 255) {
-                    ::Error(L"Too many bones in the skinning palette (%d)\nIn model %s", skinPalette.size(), sourcePath.c_str());
+                    ::Error(L"Too many bones in the skinning palette (%d)\nIn model %s", skinPalette.size(), source.name.c_str());
                     skinPalette.resize(255);
                 }
                 else if (skinPalette.size() > options.gameConfig.MaxBonesPerMesh) {
-                    ::Error(L"Too many bones in the skinning palette (%d)\nIn model %s", skinPalette.size(), sourcePath.c_str());
+                    ::Error(L"Too many bones in the skinning palette (%d)\nIn model %s", skinPalette.size(), source.name.c_str());
                     skinPalette.resize(options.gameConfig.MaxBonesPerMesh);
                 }
                 Rx3Writer boneRemapWriter(boneremaps.emplace_back());
@@ -1035,6 +1078,11 @@ void ModelToSimpleMeshContainer(Model const &source, path const &sourcePath, pat
         Rx3Writer adjacencyWriter(rx3.AddChunk(RX3_CHUNK_ADJACENCY));
         adjacencyWriter.Put(adjacency.data(), adjacency.size());
     }
+}
+
+void ModelToSimpleMeshContainer(Model const &source, path const &sourcePath, path const &rx3path, Rx3Options const &options) {
+    Rx3Container rx3(options.gameConfig.BigEndian);
+    ModelToSimpleMeshContainer(source, rx3, options);
     if (options.metadata)
         AddMetadataToRx3(rx3, sourcePath, rx3path, options);
     rx3.Save(rx3path);
