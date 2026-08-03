@@ -426,6 +426,7 @@ Model ReadModelFromFile(path const &filePath) {
     Model model;
     ModelReadOptions options;
     options.AlwaysTriangulate = false;
+    options.ApplyTransforms = false;
     options.MergeMeshes = true;
     options.FbxTangents = ModelReadOptions::FBX_TANGENTS_GENERATE;
     model.Read(filePath, options);
