@@ -730,8 +730,7 @@ bool ImportTexturesToRX3(Rx3Container &rx3, vector<PackedTextureInfo> const &tex
         else if (finMeta.miscFlags & TEX_MISC_TEXTURECUBE) rx3Type = RX3_TEXTURE_CUBE;
         else if (finMeta.arraySize > 1) rx3Type = RX3_TEXTURE_ARRAY;
 
-        vector<unsigned char> texData;
-        Rx3Writer texDataWriter(texData);
+        Rx3Writer texDataWriter(rx3.AddChunk(RX3_CHUNK_TEXTURE));
 
         // Write 16-byte Header
         texDataWriter.Put<unsigned int>(0); // Size placeholder
@@ -779,8 +778,6 @@ bool ImportTexturesToRX3(Rx3Container &rx3, vector<PackedTextureInfo> const &tex
             }
         }
         texDataWriter.AlignAndUpdateTotalSize();
-        Rx3Writer texWriter(rx3.AddChunk(RX3_CHUNK_TEXTURE));
-        texWriter.Put(texData.data(), texData.size());
     }
     // 7. Write Headers Section (Extract 16-byte headers from all populated textures)
     vector<Rx3Chunk *> textureChunks = rx3.FindAllChunks(RX3_CHUNK_TEXTURE);

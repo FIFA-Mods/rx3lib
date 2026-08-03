@@ -909,7 +909,7 @@ void ModelToSimpleMeshContainer(Model const &source, Rx3Container &rx3, Rx3Optio
                 }
             }
             // vb
-            Rx3Writer vbWriter(vbs.emplace_back());
+            Rx3Writer vbWriter(vbs.emplace_back(), options.gameConfig.BigEndian);
             vbWriter.Put<uint32_t>(0);
             vbWriter.Put<uint32_t>(o.vertices.size());
             vbWriter.Put<uint32_t>(vertexStride);
@@ -969,7 +969,7 @@ void ModelToSimpleMeshContainer(Model const &source, Rx3Container &rx3, Rx3Optio
                             recB.quadIndices[recB.count++] = recA.quadIndices[i];
                     }
                 }
-                Rx3Writer adjacencyWriter(adjacencies.emplace_back());
+                Rx3Writer adjacencyWriter(adjacencies.emplace_back(), options.gameConfig.BigEndian);
                 adjacencyWriter.Put<uint32_t>(0);
                 adjacencyWriter.Align();
                 for (auto const &rec : records) {
@@ -981,7 +981,7 @@ void ModelToSimpleMeshContainer(Model const &source, Rx3Container &rx3, Rx3Optio
             }
             // ib
             mesh.Triangulate(o.vertices);
-            Rx3Writer ibWriter(ibs.emplace_back());
+            Rx3Writer ibWriter(ibs.emplace_back(), options.gameConfig.BigEndian);
             ibWriter.Put<uint32_t>(0);
             vector<uint16_t> tristrips;
             if (options.tristrip && o.vertices.size() < 0xFFFF)
@@ -1016,7 +1016,7 @@ void ModelToSimpleMeshContainer(Model const &source, Rx3Container &rx3, Rx3Optio
                     ::Error(L"Too many bones in the skinning palette (%d)\nIn model %s", skinPalette.size(), source.name.c_str());
                     skinPalette.resize(options.gameConfig.MaxBonesPerMesh);
                 }
-                Rx3Writer boneRemapWriter(boneremaps.emplace_back());
+                Rx3Writer boneRemapWriter(boneremaps.emplace_back(), options.gameConfig.BigEndian);
                 boneRemapWriter.Put<uint32_t>(0);
                 boneRemapWriter.Put<uint8_t>(static_cast<uint8_t>(skinPalette.size()));
                 boneRemapWriter.Align();
