@@ -27,7 +27,7 @@ vector<Matrix4x4> GetSourceBoneInverseBindMatrices(Skeleton const &skeleton) {
     return matrices;
 }
 
-vector<Matrix4x4> ComputeBoneInverseBindMatricesForModel(Model const &model, Skeleton const &baseSkeleton) {
+vector<Matrix4x4> ComputeBoneInverseBindMatricesForModel(Model const &model, Skeleton const &baseSkeleton, bool ignoreSourceIbm) {
     vector<Matrix4x4> matrices = GetSourceBoneInverseBindMatrices(baseSkeleton);
     vector<Matrix4x4> worldCache(model.skeleton.bones.size());
     vector<char> computed(model.skeleton.bones.size(), 0);
@@ -38,9 +38,8 @@ vector<Matrix4x4> ComputeBoneInverseBindMatricesForModel(Model const &model, Ske
             matrices[i] = world.Inversed();
             for (uint32_t j = 0; j < 3; j++)
                 matrices[i].m[3][j] *= 100.0f;
-            // if model is skeleton - ignore source ibm
-            // if model is not skeleton - rewrite the matrix by source matrix, if present
-            if (!model.IsSkeleton() && model.skeleton.bones[boneIndex].properties.contains("ibm"))
+            // rewrite the matrix by source matrix, if present
+            if (!ignoreSourceIbm && model.skeleton.bones[boneIndex].properties.contains("ibm"))
                 matrices[i] = std::get<Matrix4x4>(model.skeleton.bones[boneIndex].properties.at("ibm"));
         }
     }
@@ -55,7 +54,7 @@ void ModelToSkeletonContainer(Model const &model, path const &sourcePath, path c
     animationSkinWriter.Put<uint32_t>(0);
     animationSkinWriter.Put<uint32_t>(options.targetSkeleton.bones.size());
     animationSkinWriter.Align();
-    auto matrices = ComputeBoneInverseBindMatricesForModel(model, options.targetSkeleton);
+    auto matrices = ComputeBoneInverseBindMatricesForModel(model, options.targetSkeleton, model.IsSkeleton());
     for (auto const &matrix : matrices)
         WriteMatrix4x4(animationSkinWriter, matrix);
     // skeleton

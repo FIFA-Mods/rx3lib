@@ -6,4 +6,4 @@
 Model ModelFromSkeletonContainer(Rx3Container &rx3, Rx3Options const &options);
 void ModelToSkeletonContainer(Model const &model, path const &sourcePath, path const &rx3path, Rx3Options const &options);
 vector<Matrix4x4> GetSourceBoneInverseBindMatrices(Skeleton const &skeleton);
-vector<Matrix4x4> ComputeBoneInverseBindMatricesForModel(Model const &model, Skeleton const &baseSkeleton);
+vector<Matrix4x4> ComputeBoneInverseBindMatricesForModel(Model const &model, Skeleton const &baseSkeleton, bool ignoreSourceIbm);

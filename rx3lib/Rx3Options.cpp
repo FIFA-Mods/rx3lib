@@ -208,7 +208,7 @@ Rx3Options::Rx3Options(string const &gameName) {
     tristrip = false;
     precisePositions = true;
     binormals = false;
-    boneMatricesOption = BONE_MATRICES_FROM_FILE;
+    boneMatricesOption = BONE_MATRICES_FROM_FBX_FILE;
     scale = 1.0f;
     movement = { 0.0f, 0.0f, 0.0f };
 }

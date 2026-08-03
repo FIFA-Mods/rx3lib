@@ -4,8 +4,8 @@
 #include "Rx3Scene.h"
 #include "Rx3Morph.h"
 #include "Rx3Skeleton.h"
-#include "MeshOperations/MeshTristrip.h"
-#include "MeshOperations/MeshSkinning.h"
+#include "ModelOperations/ModelTristrip.h"
+#include "ModelOperations/ModelSkinning.h"
 
 using namespace rx3utils;
 
@@ -558,6 +558,15 @@ void SetupObjectMesh(Object &obj, Rx3Chunk *vfChunk, Rx3Chunk *vbChunk, Rx3Chunk
                     }
                 }
             }
+            if (NumBones(obj.vertexFormat) > 0) {
+                size_t maxBonesPerVertex = 0;
+                for (auto &v : obj.vertices) {
+                    auto bones = ModelSkinning::GetVertexBones(v, NumBones(obj.vertexFormat));
+                    ModelSkinning::SetVertexBones(v, bones, false);
+                    maxBonesPerVertex = max(bones.size(), maxBonesPerVertex);
+                }
+                SetNumBones(obj.vertexFormat, (uint8_t)maxBonesPerVertex);
+            }
             auto ReadIndex = [](Rx3Reader &reader, uint8_t stride) -> uint32_t {
                 if (stride == 1)
                     return reader.Read<uint8_t>();
@@ -679,8 +688,7 @@ Model ModelFromSimpleMeshContainer(Rx3Container &rx3, Rx3Options const &options)
     for (size_t i = 0; i < ibs.size(); i++) {
         auto &obj = model.objects[i + 1];
         obj.name = objectNames[i];
-        if (model.skeleton.bones.empty())
-            obj.parent = nodeName;
+        obj.parent = nodeName;
         Rx3Reader meshChunkReader(meshes[i]);
         uint16_t primType = meshChunkReader.Read<uint16_t>();
         auto qb = qbs.size() == ibs.size() ? qbs[i] : nullptr;
@@ -712,7 +720,7 @@ bool RemapBones(Model &model, map<string, string> boneRemap, Skeleton const &tar
             continue;
         size_t newBonesPerVertex = 0;
         for (size_t v = 0; v < o.vertices.size(); v++) {
-            auto bonesSrc = MeshSkinning::GetVertexBones(o.vertices[v], NumBones(o.vertexFormat));
+            auto bonesSrc = ModelSkinning::GetVertexBones(o.vertices[v], NumBones(o.vertexFormat));
             map<uint16_t, float> bonesDstMap;
             for (auto const &[boneSrc, weight] : bonesSrc) {
                 if (boneSrc < model.skeleton.bones.size()) {
@@ -727,7 +735,7 @@ bool RemapBones(Model &model, map<string, string> boneRemap, Skeleton const &tar
             vector<pair<uint16_t, float>> bonesDst;
             for (auto const &[bone, weight] : bonesDstMap)
                 bonesDst.emplace_back(bone, weight);
-            MeshSkinning::SetVertexBones(o.vertices[v], bonesDst, true);
+            ModelSkinning::SetVertexBones(o.vertices[v], bonesDst, true);
             newBonesPerVertex = max(bonesDst.size(), newBonesPerVertex);
         }
         SetNumBones(o.vertexFormat, (uint8_t)newBonesPerVertex);
@@ -747,13 +755,15 @@ void ModelToSimpleMeshContainer(Model const &source, Rx3Container &rx3, Rx3Optio
     using namespace helper::rx3model;
     Model model = source;
     model.MergeMeshes();
+    model.ApplyTransforms();
     RenameObjects(model);
     bool remappedBones = false;
     bool hasSkeleton = !model.skeleton.bones.empty() && !options.targetSkeleton.bones.empty();
     if (hasSkeleton) {
         if (!options.poseChangeMatrices.empty())
-            MeshSkinning::ChangePose(model, options.poseChangeMatrices);
-        remappedBones = RemapBones(model, options.boneRemap, options.targetSkeleton);
+            ModelSkinning::ChangePose(model, options.poseChangeMatrices);
+        if (!options.boneRemap.empty())
+            remappedBones = RemapBones(model, options.boneRemap, options.targetSkeleton);
     }
     // ibbatch, quadibbatch, vertexformat's, nametable, ib's, qib's, boneremap's, vb's, animationskin's, simplemesh's, adjacency's
     vector<vector<uint8_t>> vbs, ibs, qibs, boneremaps, adjacencies;
@@ -784,11 +794,15 @@ void ModelToSimpleMeshContainer(Model const &source, Rx3Container &rx3, Rx3Optio
     // calculate skeleton
     if (hasSkeleton) {
         bool adjustMatrices = false;
-        if (options.boneMatricesOption == BONE_MATRICES_FROM_FILE && !remappedBones) { // use skeleton from FBX
-            ibms = ComputeBoneInverseBindMatricesForModel(model, options.targetSkeleton);
+        if (options.boneMatricesOption == BONE_MATRICES_FROM_FBX_FILE && !remappedBones) { // use skeleton from FBX
+            ibms = ComputeBoneInverseBindMatricesForModel(model, options.targetSkeleton, true);
             adjustMatrices = true;
         }
-        if (options.boneMatricesOption == BONE_MATRICES_FROM_BASE_MODEL) {
+        else if (options.boneMatricesOption == BONE_MATRICES_FROM_SOURCE_RX3 && !remappedBones) { // use skeleton from source RX3
+            ibms = ComputeBoneInverseBindMatricesForModel(model, options.targetSkeleton, false);
+            adjustMatrices = true;
+        }
+        else if (options.boneMatricesOption == BONE_MATRICES_FROM_BASE_MODEL) {
             ibms = GetSourceBoneInverseBindMatrices(options.baseModel.skeleton);
             adjustMatrices = false; // bone matrices are taken from the reference RX3 file as is
         }
@@ -811,7 +825,7 @@ void ModelToSimpleMeshContainer(Model const &source, Rx3Container &rx3, Rx3Optio
                 objectPackedBones.resize(o.vertices.size());
                 for (size_t v = 0; v < o.vertices.size(); v++) {
                     auto &packedBones = objectPackedBones[v];
-                    auto bones = MeshSkinning::GetVertexBones(o.vertices[v], NumBones(o.vertexFormat));
+                    auto bones = ModelSkinning::GetVertexBones(o.vertices[v], NumBones(o.vertexFormat));
                     if (bones.empty())
                         packedBones.push_back(PackedBoneInfo(0, 255));
                     else if (bones.size() == 1)
@@ -819,7 +833,7 @@ void ModelToSimpleMeshContainer(Model const &source, Rx3Container &rx3, Rx3Optio
                     else
                         packedBones = GetPackedBones(bones);
                     if (packedBones.empty())
-                        packedBones.push_back(PackedBoneInfo(0, 255));
+                        packedBones.push_back(PackedBoneInfo(1, 255));
                     else if (packedBones.size() == 1)
                         packedBones[0].weightPacked = 255;
                     numBonesPerVertex = max(static_cast<uint8_t>(packedBones.size()), numBonesPerVertex);
@@ -970,7 +984,7 @@ void ModelToSimpleMeshContainer(Model const &source, Rx3Container &rx3, Rx3Optio
             ibWriter.Put<uint32_t>(0);
             vector<uint16_t> tristrips;
             if (options.tristrip && o.vertices.size() < 0xFFFF)
-                tristrips = MeshTristrip::GenerateTristrips(mesh.polygons);
+                tristrips = ModelTristrip::GenerateTristrips(mesh.polygons);
             if (!tristrips.empty()) {
                 ibWriter.Put(tristrips.size());
                 ibWriter.Put(indexSize);
