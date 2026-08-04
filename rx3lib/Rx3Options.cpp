@@ -203,11 +203,12 @@ Rx3Options::Rx3Options(string const &gameName) {
     writeHDR = true;
     writeTexMetadata = true;
     metadata = true;
-    folderOption = FOLDER_OPTION_AUTO;
-    gameConfig = GameConfigs()[gameName];
+    forceBigEndian = false;
     tristrip = false;
     precisePositions = true;
     binormals = false;
+    folderOption = FOLDER_OPTION_AUTO;
+    gameConfig = GameConfigs()[gameName];
     boneMatricesOption = BONE_MATRICES_FROM_FBX_FILE;
     scale = 1.0f;
     movement = { 0.0f, 0.0f, 0.0f };

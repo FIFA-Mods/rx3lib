@@ -127,6 +127,19 @@ unsigned char CalcMaxMipLevel(unsigned short height, unsigned short width) {
     return result;
 }
 
+void TexelsSwapEndian(uint8_t *data, uint32_t dataSize, int baseFormat) {
+    if (baseFormat == RX3_TEXFORMAT_DXT1 || baseFormat == RX3_TEXFORMAT_DXT3 || baseFormat == RX3_TEXFORMAT_DXT5) {
+        for (uint32_t i = 0; i < dataSize / 2; i++)
+            std::swap(data[i * 2], data[i * 2 + 1]);
+    }
+    else if (baseFormat == RX3_TEXFORMAT_ARGB8888) {
+        for (uint32_t i = 0; i < dataSize / 4; i++) {
+            std::swap(data[i * 4], data[i * 4 + 3]);
+            std::swap(data[i * 4 + 1], data[i * 4 + 2]);
+        }
+    }
+}
+
 void ExtractTexturesFromRX3(Rx3Container &container, path const &outputDir, Rx3Options const &rx3options) {
     vector<PackedTextureInfo> vecTexInfo;
     auto texNamesSection = container.FindFirstChunk(RX3_CHUNK_NAME_TABLE);
@@ -172,12 +185,29 @@ void ExtractTexturesFromRX3(Rx3Container &container, path const &outputDir, Rx3O
         texInfo.format = baseFormat;
         DXGI_FORMAT const dxgiFormat = MapRx3FormatToDXGI(baseFormat);
         bool typeSupported = type == RX3_TEXTURE_2D || type == RX3_TEXTURE_3D || type == RX3_TEXTURE_CUBE || type == RX3_TEXTURE_ARRAY;
-        if (dataFormat != RX3_TEXDATAFORMAT_LINEAR || !typeSupported || dxgiFormat == DXGI_FORMAT_UNKNOWN) {
+        if (!typeSupported || dxgiFormat == DXGI_FORMAT_UNKNOWN) {
             ::Error(Format("Unsupported texture format (texture %s in file %s)", texName.c_str(), container.mName.c_str()));
+            continue;
+        }
+        if (dataFormat & RX3_TEXDATAFORMAT_TILEDXENON) {
+            ::Error(Format("Tiled Xenon textures are not supported (texture %s in file %s)", texName.c_str(), container.mName.c_str()));
+            continue;
+        }
+        if (dataFormat & RX3_TEXDATAFORMAT_SWIZZLEDPS3) {
+            ::Error(Format("PS3 Swizzled textures are not supported (texture %s in file %s)", texName.c_str(), container.mName.c_str()));
+            continue;
+        }
+        if (dataFormat & RX3_TEXDATAFORMAT_PACKAGED) {
+            ::Error(Format("Packaged textures are not supported (texture %s in file %s)", texName.c_str(), container.mName.c_str()));
+            continue;
+        }
+        if (dataFormat & RX3_TEXDATAFORMAT_REFPACKED) {
+            ::Error(Format("Refpacked textures are not supported (texture %s in file %s)", texName.c_str(), container.mName.c_str()));
             continue;
         }
         if (width == 0 || height == 0 || depth == 0 || mips == 0)
             continue;
+
         bool const isCubemap = type == RX3_TEXTURE_CUBE && depth == 6;
         bool const isVolume = type == RX3_TEXTURE_3D;
         bool const isArray = type == RX3_TEXTURE_ARRAY;
@@ -216,7 +246,9 @@ void ExtractTexturesFromRX3(Rx3Container &container, path const &outputDir, Rx3O
                     reader.Skip(4);
                     if (l < levelsToKeep) {
                         Image const *dstImage = image.GetImage(l, 0, s);
-                        auto const *src = reinterpret_cast<unsigned char const *>(reader.GetCurrentPtr());
+                        uint8_t *src = (uint8_t *)reader.GetCurrentPtr();
+                        if (dataFormat & RX3_TEXDATAFORMAT_BIGENDIAN)
+                            TexelsSwapEndian(src, levelSize, baseFormat);
                         CopyLevelIntoImage(dstImage, src, dataStride, dataHeight);
                     }
                     reader.Skip(levelSize);
@@ -232,7 +264,9 @@ void ExtractTexturesFromRX3(Rx3Container &container, path const &outputDir, Rx3O
                     reader.Skip(4);
                     if (l < levelsToKeep) {
                         Image const *dstImage = image.GetImage(l, f, 0);
-                        auto const *src = reinterpret_cast<unsigned char const *>(reader.GetCurrentPtr());
+                        uint8_t *src = (uint8_t *)reader.GetCurrentPtr();
+                        if (dataFormat & RX3_TEXDATAFORMAT_BIGENDIAN)
+                            TexelsSwapEndian(src, levelSize, baseFormat);
                         CopyLevelIntoImage(dstImage, src, dataStride, dataHeight);
                     }
                     reader.Skip(levelSize);
@@ -729,6 +763,9 @@ bool ImportTexturesToRX3(Rx3Container &rx3, vector<PackedTextureInfo> const &tex
         if (finMeta.dimension == TEX_DIMENSION_TEXTURE3D) rx3Type = RX3_TEXTURE_3D;
         else if (finMeta.miscFlags & TEX_MISC_TEXTURECUBE) rx3Type = RX3_TEXTURE_CUBE;
         else if (finMeta.arraySize > 1) rx3Type = RX3_TEXTURE_ARRAY;
+        unsigned char dataFormat = RX3_TEXDATAFORMAT_LINEAR;
+        if (rx3options.forceBigEndian)
+            dataFormat |= RX3_TEXDATAFORMAT_BIGENDIAN;
 
         Rx3Writer texDataWriter(rx3.AddChunk(RX3_CHUNK_TEXTURE));
 
@@ -736,7 +773,7 @@ bool ImportTexturesToRX3(Rx3Container &rx3, vector<PackedTextureInfo> const &tex
         texDataWriter.Put<unsigned int>(0); // Size placeholder
         texDataWriter.Put<unsigned char>(rx3Type);
         texDataWriter.Put<unsigned char>(rx3Format);
-        texDataWriter.Put<unsigned char>(RX3_TEXDATAFORMAT_LINEAR);
+        texDataWriter.Put<unsigned char>(dataFormat);
         texDataWriter.Put<unsigned char>(0); // Padding to align header
         texDataWriter.Put<unsigned short>(static_cast<unsigned short>(finMeta.width));
         texDataWriter.Put<unsigned short>(static_cast<unsigned short>(finMeta.height));
@@ -756,6 +793,8 @@ bool ImportTexturesToRX3(Rx3Container &rx3, vector<PackedTextureInfo> const &tex
                     texDataWriter.Put<unsigned int>(static_cast<unsigned int>(dataHeight));
                     texDataWriter.Put<unsigned int>(static_cast<unsigned int>(slicePitch));
                     texDataWriter.Put<unsigned int>(0); // padding
+                    if (dataFormat & RX3_TEXDATAFORMAT_BIGENDIAN)
+                        TexelsSwapEndian(img->pixels, slicePitch, rx3Format);
                     texDataWriter.Put(img->pixels, slicePitch);
                 }
             }
@@ -773,6 +812,8 @@ bool ImportTexturesToRX3(Rx3Container &rx3, vector<PackedTextureInfo> const &tex
                     texDataWriter.Put<unsigned int>(static_cast<unsigned int>(dataHeight));
                     texDataWriter.Put<unsigned int>(static_cast<unsigned int>(slicePitch));
                     texDataWriter.Put<unsigned int>(0); // padding
+                    if (dataFormat & RX3_TEXDATAFORMAT_BIGENDIAN)
+                        TexelsSwapEndian(img->pixels, slicePitch, rx3Format);
                     texDataWriter.Put(img->pixels, slicePitch);
                 }
             }

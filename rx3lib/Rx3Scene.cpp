@@ -223,7 +223,7 @@ Model ModelFromSceneContainer(Rx3Container &rx3, Rx3Options const &options) {
                                 meshObj.parent = model.objects[layerIdx].name;
                                 int primType = meshIdx < primTypes.size() ? primTypes[meshIdx] : RX3_PRIM_TRIANGLELIST;
                                 auto quadBuffer = quadBufferChunks.size() == indexBufferChunks.size() ? quadBufferChunks[meshIdx] : nullptr;
-                                SetupObjectMesh(meshObj, vertexFormatChunks[meshIdx], vertexBufferChunks[meshIdx], indexBufferChunks[meshIdx],
+                                Rx3MeshToObject(meshObj, vertexFormatChunks[meshIdx], vertexBufferChunks[meshIdx], indexBufferChunks[meshIdx],
                                     quadBuffer, primType, 0, options);
                                 if (materialIdx < model.materials.size())
                                     meshObj.firstMesh().material = model.materials[materialIdx].name;

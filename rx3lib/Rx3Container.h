@@ -7,6 +7,11 @@ void Rx3SwapEndian(uint16_t &value);
 void Rx3SwapEndian(int32_t &value);
 void Rx3SwapEndian(int16_t &value);
 void Rx3SwapEndian(float &value);
+void Rx3SwapEndian(uint32_t *value);
+void Rx3SwapEndian(uint16_t *value);
+void Rx3SwapEndian(int32_t *value);
+void Rx3SwapEndian(int16_t *value);
+void Rx3SwapEndian(float *value);
 
 constexpr uint32_t Rx3Hash(const char *str) {
     uint32_t result = 5321;
@@ -80,6 +85,7 @@ enum Rx3TextureDataFormat : uint8_t {
     RX3_TEXDATAFORMAT_BIGENDIAN = 0x02,
     RX3_TEXDATAFORMAT_TILEDXENON = 0x04,
     RX3_TEXDATAFORMAT_SWIZZLEDPS3 = 0x08,
+    RX3_TEXDATAFORMAT_PACKAGED = 0x40,
     RX3_TEXDATAFORMAT_REFPACKED = 0x80
 };
 

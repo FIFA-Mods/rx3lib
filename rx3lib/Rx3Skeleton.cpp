@@ -48,7 +48,7 @@ vector<Matrix4x4> ComputeBoneInverseBindMatricesForModel(Model const &model, Ske
 
 void ModelToSkeletonContainer(Model const &model, path const &sourcePath, path const &rx3path, Rx3Options const &options) {
     using namespace helper::rx3model;
-    Rx3Container rx3(options.gameConfig.BigEndian);
+    Rx3Container rx3(options.gameConfig.BigEndian || options.forceBigEndian);
     // aimationskin
     Rx3Writer animationSkinWriter(rx3.AddChunk(RX3_CHUNK_ANIMATION_SKIN));
     animationSkinWriter.Put<uint32_t>(0);

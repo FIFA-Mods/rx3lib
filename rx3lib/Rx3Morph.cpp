@@ -50,7 +50,7 @@ void ModelToMorphTargetsContainer(Model const &model, path const &sourcePath, pa
         if (!baseModelObj.vertices.empty())
             objects.emplace_back(baseModelObj.name, model.GetObjectByName(baseModelObj.name, true));
     }
-    Rx3Container rx3(options.gameConfig.BigEndian);
+    Rx3Container rx3(options.gameConfig.BigEndian || options.forceBigEndian);
     // nametable, morphindexed's
     vector<string> shapeKeyNames;
     for (auto const &[name, obj] : objects)

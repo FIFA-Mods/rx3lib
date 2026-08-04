@@ -55,6 +55,7 @@ struct Rx3Options {
     bool precisePositions;
     bool binormals;
     bool metadata;
+    bool forceBigEndian;
     eFolderOption folderOption;
     eBoneMatricesOption boneMatricesOption;
     GameConfig gameConfig;

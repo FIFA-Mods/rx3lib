@@ -67,6 +67,7 @@
     <ClCompile Include="rx3lib\Rx3TextureMetadata.cpp" />
     <ClCompile Include="rx3lib\Rx3Textures.cpp" />
     <ClCompile Include="rx3lib\Rx3Utils.cpp" />
+    <ClCompile Include="rx3lib\Rx3VertexFormat.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rx3lib\Rx3Container.h" />
@@ -80,6 +81,7 @@
     <ClInclude Include="rx3lib\Rx3TextureMetadata.h" />
     <ClInclude Include="rx3lib\Rx3Textures.h" />
     <ClInclude Include="rx3lib\Rx3Utils.h" />
+    <ClInclude Include="rx3lib\Rx3VertexFormat.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

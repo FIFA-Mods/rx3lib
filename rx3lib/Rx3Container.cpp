@@ -22,6 +22,26 @@ void Rx3SwapEndian(float &value) {
     SetAt(&value, 0, _byteswap_ulong(GetAt<unsigned long>(&value, 0)));
 }
 
+void Rx3SwapEndian(uint32_t *value) {
+    *value = _byteswap_ulong(*value);
+}
+
+void Rx3SwapEndian(uint16_t *value) {
+    *value = _byteswap_ushort(*value);
+}
+
+void Rx3SwapEndian(int32_t *value) {
+    *value = _byteswap_ulong(*value);
+}
+
+void Rx3SwapEndian(int16_t *value) {
+    *value = _byteswap_ushort(*value);
+}
+
+void Rx3SwapEndian(float *value) {
+    SetAt(&value, 0, _byteswap_ulong(GetAt<unsigned long>(value, 0)));
+}
+
 Rx3Reader::Rx3Reader(void const *data, bool bigEndian) {
     mBegin = (uint8_t const *)data;
     mCurrent = mBegin;
